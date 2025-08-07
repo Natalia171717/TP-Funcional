@@ -1,0 +1,111 @@
+Queremos ver que vale la siguiente proposición: 
+
+∀n, m :: Int. (n >= 0 && m >= 0) y ∀x :: Doc,
+                        P(x) = indentar n (indentar m x) = indentar (n + m) x
+
+
+Vamos a demostrar P por inducción estructural, para eso tenemos que probar que vale para los casos base y recursivos. 
+En este caso tenemos solo un caso base, cuando el Doc es Vacio y dos casos recursivos: cuando el Doc es tipo Texto y cuando es tipo Linea. 
+
+Para demostrar la proposición usaremos los siguientes lemas.
+    - Lema 1: 
+            indentar k Vacio = Vacio para todo k :: Int. (k >= 0).
+    - Lema 2: 
+            indentar k (Texto s d) = Texto s (indentar k d) para todo k :: Int. (k >= 0), s :: String y d :: Doc.
+    - Lema 3: 
+            indentar m (Linea k d) = Linea (m+k) (indentar m d) para todo m, k :: Int. (k >= 0 && m >= 0) y d :: Doc.
+
+Veamos el caso base:
+
+- Caso base: x = Vacio
+ 
+    indentar n (indentar m Vacio) = indentar (n + m) Vacio
+
+    Desarrollemos el lado izquierdo:
+    
+                indentar n (indentar m Vacio) =
+    (lema 1)                  indetar n Vacio =
+    (lema 1)                            Vacio
+    
+    Desarrollemos el lado derecho:
+
+                indetar (n + m) Vacio =
+    (lema 1)                    Vacio
+    
+    Ambos lados de la ecuación llegan a Vacio por lo que queda demostrado el caso base.
+    
+Ahora veamos que P vale sobre los constructores recursivos de Doc.
+
+- Paso inductivo:
+    ∀d :: Doc, s :: String, (P(d) -> P(Texto s d))
+    ∀d :: Doc, i :: Int. (i >= 0), (P(d) -> P(Linea i d))
+
+    La hipótesis inductiva es la siguiente:
+    ∀d :: Doc, P(d) = ∀ n,m :: Int. (n >= 0 && m >= 0) ⟹ indentar n (indentar m d) = indentar (n + m) d
+
+    - Caso (Texto s d):
+
+                         indentar n (indentar m (Texto s d)) = 
+            (por lema 2) indentar n (Texto s (indentar m d)) =
+            (por lema 2) Texto s (indentar n (indentar m d)) =
+            (por HI)            Texto s (indentar (n + m) d) =
+            (por lema 2)        indentar (n + m) (Texto s d) 
+
+    Llegamos a lo que queríamos probar!
+
+    - Caso (Linea i d):
+
+                                               indentar n (indentar m (Linea i d)) =
+            (por lema 3)                 indentar n (Linea (m + i) (indentar m d)) =
+            (por lema 3)             Linea (n + (m + i)) (indentar n (indentar m d)) =
+            (por Int)                Linea ((n + m) + i) (indentar n (indentar m d)) =
+            (por HI)                        Linea ((n + m) + i) (indentar (n + m) d) =
+            (por lema 3)                              indentar (n + m) (Linea i d) =
+
+    Llegamos a lo que queríamos probar!
+
+Quedan demostrados el caso base y los casos recursivos, por ende por principio de inducción estructural podemos concluir que vale:
+
+∀n, m :: Int positivos y ∀x :: Doc, 
+                        P(x) = indentar n (indentar m x) = indentar (n + m) x
+
+Para demostrar los lemas utilizaremos las siguientes definiciones:
+
+foldDoc :: b -> (String -> b -> b) -> (Int -> b -> b) -> Doc -> b
+{foldDoc} foldDoc cVacio cTexto cLinea doc = case doc of
+{caseV}                                  Vacio     -> cVacio
+{caseT}                                  Texto s d -> cTexto s (rec d)
+{caseL}                                  Linea n d -> cLinea n (rec d)
+                                where
+                                    rec = foldDoc cVacio cTexto cLinea
+
+indentar :: Int -> Doc -> Doc
+{I}    indentar i = foldDoc Vacio Texto (\n rec -> Linea (n+i) rec)
+
+Ahora demostremos los lemas que usamos:
+
+- Lema 1:
+            indentar k Vacio = Vacio para todo k :: Int. (k >= 0)
+
+                                                            indentar k Vacio = 
+(por I)              foldDoc Vacio Texto (\n rec -> Linea (n + k) rec) Vacio =
+(por foldDoc y caseV)                                                  Vacio
+
+- Lema 2:
+            indentar k (Texto s d) = Texto s (indentar k d) para todo k :: Int. (k >= 0), s :: String y d :: Doc.
+
+                                                                 indentar k (Texto s d) =
+(por I)                   foldDoc Vacio Texto (\n rec -> Linea (n + k) rec) (Texto s d) =
+(por foldDoc y caseT)     Texto s (foldDoc Vacio Texto (\n rec -> Linea (n + k) rec) d) =
+(por I)                                                          Texto s (indentar k d)
+
+- Lema 3:
+            indentar m (Linea k d) = Linea (m+k) (indentar m d) para todo m, k :: Int. (k >= 0) y d :: Doc.
+
+                                                                                           indentar m (Linea k d) =
+(por I)                                             foldDoc Vacio Texto (\n' rec' -> Linea (n' + m) rec') (Linea k d) =
+(por foldDoc y caseL)   (\n' rec' -> Linea (n' + m) rec') k (foldDoc Vacio Texto (\n rec -> Linea (n + m) rec) d) =
+(por β)                        (rec' -> Linea (k + m) rec') (foldDoc Vacio Texto (\n rec -> Linea (n + m) rec) d) =
+(por β)                                       Linea (k + m) (foldDoc Vacio Texto (\n rec -> Linea (n + m) rec) d) =
+(por I)                                                                              Linea (k + m) (indentar m d) = 
+(por conmutatividad de la suma)                                                      Linea (m + k) (indentar m d)
